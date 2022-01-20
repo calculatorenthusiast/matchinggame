@@ -1,0 +1,685 @@
+<!-- Noah Browne's Matching Game Version 1.0 -->
+
+<!DOCTYPE html>
+
+<html>
+	<head>
+		<title>Noah Browne's Matching Game</title>
+		
+		<style>
+			
+			#main
+			{
+				width: 65%;
+				max-width: 600px;
+				min-width: 500px;
+				
+				margin-left: auto;
+				margin-right: auto;
+				
+				margin-top: auto;
+				margin-bottom: auto;
+				
+				border: 1px solid black;
+				background-color: green;
+			}
+			
+			button
+			{
+				background-color: red;
+				border-radius: 24px;
+				color: white;
+				width: 24.0001%;
+				border: 2px dotted white;
+			}
+			
+			button:hover
+			{
+				border: 1px solid black;
+			}
+			
+			img
+			{
+				width: 25%;
+				margin: -2px;
+			}
+			
+			img:hover
+			{
+				opacity: 0.65;
+				outline: 1px solid white;
+				outline-offset: -5px;
+			}
+			
+		</style>
+	</head>
+	
+	<body onload="setupBoard()">
+		
+		<div id="main">
+			
+			<h1 id="title">Flip 2 to Match 2!</h1>
+			
+			<button type="button" class="other" onclick="checkMatch()"     >Check for Match </button>
+			<button type="button" class="other" onclick="getScore()"       >Check the Score </button>
+			<button type="button" class="other" onclick="getTurnData()"    >Check Turn Data </button>
+			<button type="button" id="reload" onclick="reloadPageConditionally()">Reset Game Board</button>
+			
+			<br />
+			
+			<div id="gameboard" class="other">
+				<!-- set up default images of cards, common back -->
+				<img id="0"  onclick="play(0);"  src="images/cardback_01.png" />
+				<img id="1"  onclick="play(1);"  src="images/cardback_02.png" />
+				<img id="2"  onclick="play(2);"  src="images/cardback_03.png" />
+				<img id="3"  onclick="play(3);"  src="images/cardback_04.png" />
+				
+				<img id="4"  onclick="play(4);"  src="images/cardback_05.png" />
+				<img id="5"  onclick="play(5);"  src="images/cardback_06.png" />
+				<img id="6"  onclick="play(6);"  src="images/cardback_07.png" />
+				<img id="7"  onclick="play(7);"  src="images/cardback_08.png" />
+				
+				<img id="8"  onclick="play(8);"  src="images/cardback_09.png" />
+				<img id="9"  onclick="play(9);"  src="images/cardback_10.png" />
+				<img id="10" onclick="play(10);" src="images/cardback_11.png" />
+				<img id="11" onclick="play(11);" src="images/cardback_12.png" />
+				
+				<img id="12" onclick="play(12);" src="images/cardback_13.png" />
+				<img id="13" onclick="play(13);" src="images/cardback_14.png" />
+				<img id="14" onclick="play(14);" src="images/cardback_15.png" />
+				<img id="15" onclick="play(15);" src="images/cardback_16.png" />
+				
+			</div>
+			
+			<div id="music">
+				<button type="button" class="long" id="play" onclick="playMusic()" >Play Music</button>
+				<button type="button" class="long" id="stop" onclick="pauseMusic()">Pause Music</button>
+				<button type="button" class="long" id="fast" onclick="speedMusic()">Speed Up Music</button>
+				<button type="button" class="long" id="slow" onclick="slowMusic()" >Slow Down Music</button>
+			</div>
+			
+			<p id="musicSpeed">Music speed: 1.0</p>
+			
+		</div>
+		
+		<p>
+			Attribution for non-secret music:<br>
+			Fluffing a Duck by Kevin MacLeod<br>
+			
+			Link: <a href="https://filmmusic.io/song/3766-fluffing-a-duck">
+			https://filmmusic.io/song/3766-fluffing-a-duck</a><br>
+			
+			License: <a href="https://filmmusic.io/standard-license">
+			https://filmmusic.io/standard-license</a></p>
+
+		
+		<script>
+		
+		    // track gameplay
+		    var turn     = 1; // odd is player 1, even is player 2
+		    var plays    = 0; // max is 2 - represents cards flipped each turn
+		    var gameover = false; // change to true when 8 matches are made
+		    
+		    // keep score for each player
+	        var player1matches = 0;
+	        var player2matches = 0;
+	        
+	        // arrays to hold data for each play, reset on next turn
+	        let originalSource = Array(2); // holds original "back" of card
+	        let spaces         = Array(2); // remembers the space played
+	        let choice         = Array(2); // holds source of image for each card
+	        let cards          = Array(16); // randomly assigned cards for gameplay
+	        
+	        // track which cards have been flipped and matched
+	        let flipped = [ 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 ]; // avoids duplicates
+	        
+	        // media files
+	        var audioMusic   = new Audio( "sounds/fluffing-a-duck-by-kevin-macleod-from-filmmusic-io.mp3" );
+	        var audioError   = new Audio( "sounds/error.wav" );
+			var audioMatch   = new Audio( "sounds/success.wav" );
+			var audioNoMatch = new Audio( "sounds/failure.wav" );
+			
+			audioMatch.playbackRate   = 1.5;
+			audioError.playbackRate   = 2;
+			audioNoMatch.playbackRate = 2;
+			audioMusic.playbackRate   = 1.0 / 1.1;
+			
+			var musicSpeedRounded = 0;
+	        
+	        // string array containing the source file data for all images
+	        // fixed, not randomized
+	        let setup = Array(16); // default cards to be used for game board
+	        
+	        setup[0]  = 'images/1.jpg';
+	        setup[1]  = 'images/1.jpg';
+	        setup[2]  = 'images/2.jpg';
+	        setup[3]  = 'images/2.jpg';
+	        
+	        setup[4]  = 'images/3.jpg';
+	        setup[5]  = 'images/3.jpg';
+	        setup[6]  = 'images/4.jpg';
+	        setup[7]  = 'images/4.jpg';
+	        
+	        setup[8]  = 'images/5.jpg';
+	        setup[9]  = 'images/5.jpg';
+	        setup[10] = 'images/6.jpg';
+	        setup[11] = 'images/6.jpg';
+	        
+	        setup[12] = 'images/7.jpg';
+	        setup[13] = 'images/7.jpg';
+	        setup[14] = 'images/8.jpg';
+	        setup[15] = 'images/8.jpg';
+	        
+	        // variables to control a secret
+	        var secret      = 0;
+	        var audioSecret = new Audio( "sounds/wow_so_secret.wav" );
+	                          // video game reference;
+	                          // wow_so_secret.wav is a real file, if you Google it.
+	        var extraAudio = Array(0);
+	        
+	        // DOMAIN OF MY FUNCTIONS
+	        
+	        /** This function plays the music. */
+	        function playMusic()
+	        {
+	            // user can play scary music on demand
+	            audioMusic.play();
+	            audioMusic.loop = true;
+	            
+	            // deal with the secret
+	            if( secret == 0 )
+	            {
+	                audioMusic.play();
+	                audioMusic.loop = true;
+	                
+	                if( !gameover )
+	                {
+    	                document.getElementById( "play" ).innerHTML =
+    	                  "Now that you're playing music, you don't need "
+    	                + "to click me again.";
+	                }
+	            } else if( secret == 1 )
+	            {
+	                document.getElementById( "play" ).innerHTML =
+	                  "You're already playing music, please stop clicking me.";;
+	            } else if( secret == 2 )
+	            {
+	                document.getElementById( "play" ).innerHTML =
+	                  "Stop clicking me.";
+	            } else if( secret == 3 )
+	            {
+	                document.getElementById( "play" ).innerHTML =
+	                  "Please.";
+	            } else if( secret == 4 )
+	            {
+	                document.getElementById( "play" ).innerHTML =
+	                  "Fine.";
+	            } else if( secret == 5 )
+	            {
+	                document.getElementById( "play" ).innerHTML =
+	                  "If you really want to keep bugging me for some new stuff...";
+	            } else if( secret == 6 )
+	            {
+	                document.getElementById( "play" ).innerHTML =
+	                  "...then I'll give you something new, if it'll make you go away.";
+	            } else if( secret == 7 )
+	            {
+	                document.getElementById( "play" ).innerHTML =
+	                  "Second-to-last chance to avoid it.";
+	            } else if( secret == 8 )
+	            {
+	                document.getElementById( "play" ).innerHTML =
+	                  "Don't say I didn't warn you.";
+	            } else if( secret >= 9 )
+	            {
+	                // point of no return
+	                audioMusic.pause();
+	                
+	                audioSecret.play();
+	                audioSecret.loop = true;
+	                
+	                document.getElementById( "play" ).innerHTML =
+	                  "Remember, this is your fault.";
+	                
+	                // document.getElementById( "reload" ).style.display = "none";
+					// document.getElementsByClassName( "other" ).style.display = "none";
+				}
+				
+				// speed up the music each press if secret not active
+				if( secret <= 9 )
+				{
+					audioMusic.playbackRate *= 1.1;
+					musicSpeedRounded = 0.01 * Math.round( 100 * audioMusic.playbackRate );
+					document.getElementById( "musicSpeed" ).innerHTML = "Music speed: " + musicSpeedRounded;				}
+				
+	            // increment the secret number if the game's still going
+	            if( secret <= 9 && !gameover )
+	            {
+	                secret++;
+	            }
+	        } // end function playMusic()
+	        
+	        /** This function stops the music. */
+	        function pauseMusic()
+	        {
+	            // user can pause/stop music
+	            if( secret <= 9 )
+	            {
+	                audioMusic.pause();
+	                secret = 0;
+	                
+	                document.getElementById( "play" ).innerHTML =
+	                  "Play Music";
+	                
+	                audioMusic.playbackRate = 1.0 / 1.1;
+					musicSpeedRounded = 1.0;
+					document.getElementById( "musicSpeed" ).innerHTML = "Music speed: " + musicSpeedRounded;
+	            } else // past the point of no return
+	            {
+	                extraAudio.length++;
+	                extraAudio[length - 1] = new Audio( "sounds/wow_so_secret.wav" );
+	                
+	                extraAudio[length - 1].play();
+	                extraAudio[length - 1].loop = true;
+	                
+	                document.getElementById( "stop" ).innerHTML =
+	                  "Nope.";
+	            }
+	            
+	            
+	        } // end function stopMusic()
+			
+			/** This function speeds up the audioMusic file; has no effect on audioSecret. */
+			function speedMusic()
+			{
+				if( !audioMusic.paused )
+				{
+					audioMusic.playbackRate *= 1.1;
+					musicSpeedRounded = 0.01 * Math.round( 100 * audioMusic.playbackRate );
+					document.getElementById( "musicSpeed" ).innerHTML = "Music speed: " + musicSpeedRounded;
+				}
+			} // end function speedMusic()
+			
+			/** This function slows down the audioMusic file; has no effect on audioSecret. */
+			function slowMusic()
+			{
+				if( !audioMusic.paused )
+				{
+					audioMusic.playbackRate /= 1.1;
+					musicSpeedRounded = 0.01 * Math.round( 100 * audioMusic.playbackRate );
+					document.getElementById( "musicSpeed" ).innerHTML = "Music speed: " + musicSpeedRounded;
+				}
+			}
+			
+			/** This function reloads the page if the secret is not active. */
+			function reloadPageConditionally()
+			{
+				if( secret <= 9 )
+				{
+					location.reload();
+				} else
+				{
+					extraAudio.length++;
+	                extraAudio[length - 1] = new Audio( "sounds/wow_so_secret.wav" );
+	                
+	                extraAudio[length - 1].play();
+	                extraAudio[length - 1].loop = true;
+	                
+	                document.getElementById( "reload" ).innerHTML =
+	                  "I'm afraid I can't let you do that.";
+				}
+			}
+	        
+	        /** This funcgtion assigns 16 images randomly to gameboard
+	            whenever the page loads */
+	        function setupBoard()
+	        {
+	            var random;
+	            
+	            for( i = 0; i < 16; i++ )
+	            {
+	                // generate a random number 0-15
+	                random = Math.floor( Math.random() * 16 );
+	                
+	                // if cards play array is empty at this random index
+	                if( cards[ random ] == null )
+	                {
+	                    cards[ random ] = setup[ i ];
+	                } else
+	                {
+	                    // cancel the incrementation of the loop until an image is assigned
+	                    i--;
+	                }
+	            }
+	        } // end function setupBoard()
+	        
+	        /** This function plays the sound for cards as flipped. */
+	        function flipCard( space )
+	        {
+	            document.getElementById( space ).src = cards[ space ];
+	            
+	            // whoosh for flipped; no sound effect, so not implemented
+	            
+	            
+	            // record flip state
+	            flipped[ space ] = 1;
+	            
+	        } // end function flipCard()
+	        
+	        /** This function runs the plays based on a card being selected */
+	        function play( space )
+	        {
+	            // alert in case both plays have already been made
+	            if( plays == 2 )
+	            {
+	                alert( "Please click the Check Match button!" );
+	            }
+	            
+	            // check to see if this space has NOT been palyed
+	            else if( flipped[ space ] == 0 )
+	            {
+	                // determine the play for saving information to turn
+	                // array elements: spaces, originalSources, choice
+	                
+	                if( plays == 0 )
+	                {
+	                    spaces[0] = space; // remember location of the first play
+	                    
+	                    originalSource[0] = document.getElementById( space ).src;
+	                    // remembers default image of first play
+	                    
+	                    choice[0] = cards[ space ]; // remembers revealed image of first play
+	                    
+	                    plays++;
+	                    
+	                    // flip the card
+	                    flipCard( space );
+	                } else
+	                {
+	                    spaces[1] = space; // remember location of the second play
+	                    
+	                    originalSource[1] = document.getElementById( space ).src;
+	                    // remembers default image of first play
+	                    
+	                    choice[1] = cards[ space ]; // remembers revealed image of second play
+	                    
+	                    plays++;
+	                    
+	                    // flip the card
+	                    flipCard( space );
+	                }
+	            }
+	            
+	            // error message for a card that's already been selected or matched
+	            else
+	            {
+	                if( !gameover )
+	                {
+	                    alert( "This space has been played! Try another card!");
+	                } else
+	                {
+	                    alert( "The game is over! Play again to select more cards." );
+	                }
+	                
+	                // buzz for try again
+	                audioError.play();
+	            }
+	            
+	        } // end function play()
+			
+			/** This function checks to see if the two cards selected are a match. */
+			function checkMatch()
+			{
+				// check if the game is over, alert user
+				if( gameover )
+				{
+					alert( "This game has ended!" );
+					audioError.play();
+					return 0;
+				} // end gameover check
+				
+				// check to see if user selected 2 cards
+				else if( plays != 2 )
+				{
+					alert( "You need to play 2 cards before checking for a match!" );
+					audioError.play();
+					return 0;
+				} // end 2 card check
+				
+				// check to see if selected cards match
+				else
+				{
+					// if choices match
+					if( choice[0] == choice[1] )
+					{
+						// messages and updates for player 1
+						if( turn % 2 == 1 )
+						{
+							// increment player 1 matches
+							player1matches++;
+							
+							// check to see if this is the 8th match
+							if( player1matches + player2matches == 8 )
+							{
+								gameover = true;
+								alert( "You have a match, Player 1! No more matches available! Game over!" );
+							}
+							
+							// if not 8th, tell next turn, update h1
+							else
+							{
+								alert( "You have a match, Player 1! Your turn, Player 2!" );
+								document.getElementById( "title" ).innerHTML = "Player 2's Turn!";
+							}
+						} // end of player 1 match updates
+						
+						// messages and updates for player 2
+						else
+						{
+							// increment player 2 matches
+							player2matches++;
+							
+							// check to see if this is the 8th match
+							if( player1matches + player2matches == 8 )
+							{
+								gameover = true;
+								alert( "You have a match, Player 2! No more matches available! Game over!" );
+							}
+							
+							// if not 8th, tell next turn, update h1
+							else
+							{
+								alert( "You have a match, Player 2! Your turn, Player 1!" );
+								document.getElementById( "title" ).innerHTML = "Player 1's Turn!";
+							}
+						} // end of player 2 match updates
+						
+						// play the success sound
+						audioMatch.play();
+						
+						// flipping matched cards to player 1 or player 2 indicator cards
+						if( turn % 2 == 1 )
+						{
+							document.getElementById( spaces[0] ).src = 'images/player1match.jpg';
+							document.getElementById( spaces[1] ).src = 'images/player1match.jpg';
+						} else
+						{
+							document.getElementById( spaces[0] ).src = 'images/player2match.jpg';
+							document.getElementById( spaces[1] ).src = 'images/player2match.jpg';
+						} // end flipping of matched cards to player match indicators
+						
+						// increment turn - but not if the game ended, to prevent an off-by-one error
+						if( player1matches + player2matches != 8 )
+						{
+							turn++;
+						}
+						
+						// reset plays for the next player's turn
+						plays = 0;
+						
+						// check to see if the game is over
+						checkEnd();
+
+						// if game's over, then cancel the secret
+						if( gameover )
+						{
+						    secret = 0;
+						    
+						    // end music and set normal music to normal speed
+						    audioMusic.playbackRate = 1.0 / 1.1;
+							musicSpeedRounded = 1.0;
+							document.getElementById( "musicSpeed" ).innerHTML = "Music speed: " + musicSpeedRounded;
+							audioSecret.pause();
+						    for( i = 0; i < extraAudio.length; i++ )
+						    {
+						        extraAudio[i].pause();
+						    }
+						    
+						    // change buttons back
+						    document.getElementById( "play"   ).innerHTML = "Play Music";
+						    document.getElementById( "stop"   ).innerHTML = "Pause Music";
+						    document.getElementById( "reload" ).innerHTML = "Reset Game Board";
+						}
+						
+					} else // else choices don't match
+					{
+						if( turn % 2 == 1 )
+						{
+							alert( "No match this time, Player 1! Your turn, Player 2!" );
+							document.getElementById( "title" ).innerHTML = "Player 2's Turn!";
+						} else
+						{
+							alert( "No match this time, Player 2! Your turn, Player 1!" );
+							document.getElementById( "title" ).innerHTML = "Player 1's Turn!";
+						}
+						
+						// no match sound
+						audioNoMatch.play();
+						
+						// increment turn - gameover check not needed
+						turn++;
+						
+						// reset plays for the next player's turn
+						plays = 0;
+						
+						// turn the non-match cards back over to original value
+						document.getElementById( spaces[0] ).src = originalSource[0];
+						document.getElementById( spaces[1] ).src = originalSource[1];
+						
+						// reset the flipped values
+						flipped[ spaces[0] ] = 0;
+						flipped[ spaces[1] ] = 0;
+					}
+					
+				} // end match check ("master" conditional)
+				
+				// if the secret is active, start normal music
+	            if( secret > 9 && !gameover )
+	            {
+	                extraAudio.length++;
+	                extraAudio[length - 1] = new Audio( "sounds/fluffing-a-duck-by-kevin-macleod-from-filmmusic-io.mp3" );
+	                
+	                extraAudio[length - 1].play();
+	                extraAudio[length - 1].loop = true;
+	            }
+				
+			} // end function checkMatch()
+			
+			/** This function checks to see if all cards have been flipped. */
+			function checkEnd()
+			{
+			    var sum = 0;
+			    
+			    // check to see how many cards have been flipped
+			    for( i = 0; i < 16; i++ )
+			    {
+			        sum += flipped[i];
+			    }
+			    
+			    // determine win or tie if all cards are flipped
+			    if( sum == 16 )
+			    {
+			        // indicate game is over
+			        gameover = true;
+			        
+			        // clapping sound to celebrate; unimplemented.
+			        
+			        
+			        // display number of turns to win the game
+			        alert( "Game Over in " + turn + " turns!" );
+			        
+			        // display the winner
+			        if( player1matches > player2matches )
+			        {
+			            document.getElementById( "title" ).innerHTML = "Player 1 wins!";
+			        } else if (player2matches > player1matches )
+			        {
+			            document.getElementById( "title" ).innerHTML = "Player 2 wins!";
+			        } else
+			        {
+			            document.getElementById( "title" ).innerHTML = "We have a tie!";
+			        } // end winner alert section
+			    }
+			} // end function checkEnd()
+			
+			/** This function checks the current score. */
+			function getScore()
+			{
+			    if( player1matches == 1 && player2matches == 1 )
+			    {
+			        alert( "Player One: " + player1matches + " match --- Player Two: "
+			             + player2matches + " match" );
+			    } else if( player1matches == 1 && player2matches != 1 )
+			    {
+			        alert( "Player One: " + player1matches + " match --- Player Two: "
+			             + player2matches + " matches" );
+			    } else if( player1matches != 1 && player2matches == 1 )
+			    {
+			        alert( "Player One: " + player1matches + " matches --- Player Two: "
+			             + player2matches + " match" );
+			    } else
+			    {
+			        alert( "Player One: " + player1matches + " matches --- Player Two: "
+			             + player2matches + " matches" );
+			    }
+			    
+			} // end function getScore()
+			
+			/** This function checks the current turn number and displays directions. */
+			function getTurnData()
+			{
+			    if( gameover )
+			    {
+			        alert( "This game has ended!" );
+			        return 0;
+			    }
+			    
+			    // display messages based on whose turn it is
+			    if( turn % 2 == 1 )
+			    {
+			        if( plays == 0 || plays == 1 )
+			        {
+			            alert( "We are on turn # " + turn + ", play #" + ( plays + 1 )
+			                 + ". Pick a card, Player 1!" );
+			        } else
+			        {
+			            alert( "We are on turn # " + turn + ", play #" + ( plays + 1 )
+			                 + ". Check for a match, Player 1!" );
+			        }
+			    } else
+			    {
+			        if( plays == 0 || plays == 1 )
+			        {
+			            alert( "We are on turn # " + turn + ", play #" + ( plays + 1 )
+			                 + ". Pick a card, Player 2!" );
+			        } else
+			        {
+			            alert( "We are on turn # " + turn + ", play #" + ( plays + 1 )
+			                 + ". Check for a match, Player 2!" );
+			        }
+			    }
+			} // end function getTurnData()
+	        
+		</script>
+	</body>
+</html>
